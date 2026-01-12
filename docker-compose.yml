@@ -19,7 +19,7 @@ services:
         user: admin
         uid: 1000
       context: ./
-      dockerfile: Dockerfile
+      dockerfile: ./docker-compose/app/Dockerfile
     restart: unless-stopped
     working_dir: /var/www/
     volumes:
