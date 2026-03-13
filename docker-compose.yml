@@ -1,39 +1,71 @@
 services:
-  db:
-    image: mysql:8.0
-    container_name: laravel-template-db
-    restart: unless-stopped
-    ports:
-      - 3306:3306
-    environment:
-      MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_USER: ${DB_USERNAME}
-      SERVICE_TAGS: dev
-      SERVICE_NAME: mysql
-  app:
-    container_name: laravel-template-app
-    build:
-      args:
-        user: admin
-        uid: 1000
-      context: ./
-      dockerfile: ./docker-compose/app/Dockerfile
-    restart: unless-stopped
-    working_dir: /var/www/
-    volumes:
-      - ./:/var/www
-    depends_on:
-      - db
-  nginx:
-    container_name: laravel-template-www
-    image: nginx:alpine
-    restart: unless-stopped
-    ports:
-      - 8000:80
-    volumes:
-      - ./:/var/www
-      - ./docker-compose/nginx:/etc/nginx/conf.d/
-    depends_on:
-      - app
+    db:
+        image: mysql:8.0
+        container_name: laravel-template-db
+        restart: unless-stopped
+        ports:
+        - "3306:3306"
+        environment:
+            MYSQL_DATABASE: ${DB_DATABASE}
+            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+            MYSQL_PASSWORD: ${DB_PASSWORD}
+            MYSQL_USER: ${DB_USERNAME}
+            SERVICE_TAGS: dev
+            SERVICE_NAME: mysql
+        volumes:
+            - mysql_data:/var/lib/mysql
+    redis:
+        image: redis:alpine
+        container_name: laravel-template-redis
+        restart: unless-stopped
+        ports:
+            - "6379:6379"
+        volumes:
+            - redis_data:/data
+    app:
+        container_name: laravel-template-app
+        build:
+            args:
+                user: admin
+                uid: 1000
+            context: ./
+            dockerfile: ./docker-compose/app/Dockerfile
+            target: app
+        restart: unless-stopped
+        working_dir: /var/www/
+        volumes:
+            - ./:/var/www
+        depends_on:
+            - db
+            - redis
+    supervisor:
+        container_name: laravel-template-supervisor
+        build:
+            context: ./
+            dockerfile: ./docker-compose/app/Dockerfile
+            target: supervisor
+        command: /usr/bin/supervisord -c /etc/supervisor/conf.d/default.conf
+        restart: unless-stopped
+        working_dir: /var/www/
+        volumes:
+            - ./:/var/www
+        depends_on:
+            - redis
+            - db
+    nginx:
+        container_name: laravel-template-www
+        image: nginx:alpine
+        restart: unless-stopped
+        ports:
+            - "8000:80"
+        volumes:
+            - ./:/var/www
+            - ./docker-compose/nginx:/etc/nginx/conf.d/
+        depends_on:
+        - app
+
+volumes:
+    mysql_data:
+        driver: local
+    redis_data:
+        driver: local
