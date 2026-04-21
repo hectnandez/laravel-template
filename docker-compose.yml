@@ -1,4 +1,29 @@
 services:
+    app:
+        container_name: laravel-template-app
+        build:
+            context: ./
+            dockerfile: ./docker-compose/Dockerfile
+            target: app
+        restart: unless-stopped
+        working_dir: /var/www/
+        volumes:
+            - ./:/var/www
+        depends_on:
+            - db
+            - redis
+            - s3
+    nginx:
+        container_name: laravel-template-www
+        image: nginx:alpine
+        restart: unless-stopped
+        ports:
+            - "8000:80"
+        volumes:
+            - ./:/var/www
+            - ./docker-compose/nginx:/etc/nginx/conf.d/
+        depends_on:
+            - app
     db:
         image: mysql:8.0
         container_name: laravel-template-db
@@ -14,6 +39,7 @@ services:
             SERVICE_NAME: mysql
         volumes:
             - mysql_data:/var/lib/mysql
+            - ./docker-compose/db/init.sh:/docker-entrypoint-initdb.d/init-db.sh
     redis:
         image: redis:alpine
         container_name: laravel-template-redis
@@ -22,33 +48,18 @@ services:
             - "6379:6379"
         volumes:
             - redis_data:/data
-    app:
-        container_name: laravel-template-app
-        build:
-            args:
-                user: admin
-                uid: 1000
-            context: ./
-            dockerfile: ./docker-compose/app/Dockerfile
-            target: app
-        restart: unless-stopped
-        working_dir: /var/www/
-        volumes:
-            - ./:/var/www
-        depends_on:
-            - db
-            - redis
     supervisor:
         container_name: laravel-template-supervisor
         build:
             context: ./
-            dockerfile: ./docker-compose/app/Dockerfile
+            dockerfile: ./docker-compose/Dockerfile
             target: supervisor
-        command: /usr/bin/supervisord -c /etc/supervisor/conf.d/default.conf
+        command: ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
         restart: unless-stopped
         working_dir: /var/www/
         volumes:
             - ./:/var/www
+            - ./docker-compose/supervisor/default.conf:/etc/supervisor/conf.d/default.conf
         depends_on:
             - redis
             - db
@@ -67,17 +78,6 @@ services:
             - s3_data:/data
             - ./docker-compose/s3/entrypoint.sh:/usr/bin/entrypoint.sh
         entrypoint: [ "sh", "/usr/bin/entrypoint.sh" ]
-    nginx:
-        container_name: laravel-template-www
-        image: nginx:alpine
-        restart: unless-stopped
-        ports:
-            - "8000:80"
-        volumes:
-            - ./:/var/www
-            - ./docker-compose/nginx:/etc/nginx/conf.d/
-        depends_on:
-        - app
 
 volumes:
     s3_data:

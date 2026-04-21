@@ -1,17 +1,18 @@
 compose_file=docker-compose.yml
+s?=app
 
 .PHONY: up
 up:
-	docker compose up --build -d
+	docker compose up -d
 
 .PHONY: down
 down:
 	docker compose down
 
-.PHONY: composer-install
-composer-update:
-	docker-compose -f $(compose_file) run --rm app sh -c 'composer install'
+.PHONY: shell
+shell:
+	docker compose exec -it $(s) /bin/bash
 
-.PHONY: composer-update
-composer-update:
-	docker-compose -f $(compose_file) run --rm app sh -c 'composer update'
+.PHONY: build
+build:
+	docker compose -f $(compose_file) build --no-cache app supervisor
